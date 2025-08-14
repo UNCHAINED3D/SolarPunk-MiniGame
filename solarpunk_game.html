@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solarpunk Habitat Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a2e; /* Dark background for a clean look */
+            color: #f0fdf4;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #game-canvas {
+            display: block;
+            background-size: cover;
+            background-position: center;
+            width: 100%;
+            height: 100%;
+            cursor: default;
+        }
+
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+            border-bottom: 2px solid #34d399;
+            z-index: 1000;
+        }
+
+        .resource-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            font-weight: bold;
+            color: #ecfdf5;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .resource-item .main-display {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.25rem;
+        }
+
+        .resource-item img {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .forecast-text {
+            font-size: 0.875rem; /* Smaller text for the forecast */
+        }
+        .text-green-400 {
+            color: #4ade80; /* Green for positive change */
+        }
+        .text-red-400 {
+            color: #f87171; /* Red for negative change */
+        }
+
+        #message-box {
+            position: absolute;
+            top: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: opacity 0.3s ease-in-out;
+            opacity: 0;
+            z-index: 2000;
+            color: #065f46;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        #message-box.show {
+            opacity: 1;
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 1rem;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+            z-index: 1000;
+        }
+        
+        .control-button {
+            padding: 0.75rem 1.5rem;
+            font-weight: bold;
+            border-radius: 9999px;
+            color: #f0fdf4;
+            background: linear-gradient(to right, #34d399, #10b981);
+            border: none;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+        .control-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 8px -1px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .control-button:active {
+            transform: scale(0.98);
+        }
+        .control-button.active {
+            background: linear-gradient(to right, #ef4444, #b91c1c);
+        }
+        .build-menu {
+            position: absolute;
+            bottom: 6rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(5px);
+        border: 2px solid #a7f3d0;
+        border-radius: 1rem;
+        padding: 1rem;
+        display: flex;
+        gap: 1rem;
+        z-index: 1000;
+        }
+        .build-menu-item {
+            cursor: pointer;
+            text-align: center;
+            padding: 0.5rem;
+            border-radius: 0.75rem;
+            transition: background 0.2s;
+        }
+        .build-menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .build-menu-item img {
+            width: 64px;
+            height: 64px;
+            border-radius: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- UI Overlay for Resources -->
+        <div id="ui-overlay">
+            <div class="flex gap-4">
+                <div class="resource-item">
+                    <div class="main-display">
+                        <img id="money-icon" src="https://placehold.co/32x32/14532d/ecfdf5?text=M" alt="Money">
+                        <span id="money-count">500</span>
+                    </div>
+                    <span id="money-forecast" class="forecast-text"></span>
+                </div>
+                <div class="resource-item">
+                    <div class="main-display">
+                        <img id="energy-icon" src="https://placehold.co/32x32/fcd34d/14532d?text=E" alt="Energy">
+                        <span id="energy-count">100</span>
+                    </div>
+                    <span id="energy-forecast" class="forecast-text"></span>
+                </div>
+                <div class="resource-item">
+                    <div class="main-display">
+                        <img id="water-icon" src="https://placehold.co/32x32/60a5fa/14532d?text=W" alt="Water">
+                        <span id="water-count">50</span>
+                    </div>
+                    <span id="water-forecast" class="forecast-text"></span>
+                </div>
+                <div class="resource-item">
+                    <div class="main-display">
+                        <img id="food-icon" src="https://placehold.co/32x32/10b981/14532d?text=F" alt="Food">
+                        <span id="food-count">50</span>
+                    </div>
+                    <span id="food-forecast" class="forecast-text"></span>
+                </div>
+                <div class="resource-item">
+                    <div class="main-display">
+                        <img id="guest-icon" src="https://placehold.co/32x32/fcd34d/14532d?text=GP" alt="Guest Points">
+                        <span id="guest-points-count">0</span>
+                    </div>
+                    <span id="guest-points-forecast" class="forecast-text"></span>
+                </div>
+            </div>
+            <div class="text-lg font-bold">
+                Day: <span id="day-count">1</span>
+            </div>
+        </div>
+
+        <!-- The main canvas for the game world -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- A message box for user feedback -->
+        <div id="message-box"></div>
+
+        <!-- Main control buttons -->
+        <div id="controls">
+            <button id="toggle-build-mode" class="control-button">Toggle Build</button>
+            <button id="toggle-edit-mode" class="control-button">Toggle Move</button>
+            <button id="pass-time" class="control-button">Pass 1 Day</button>
+        </div>
+
+        <!-- The build menu (hidden by default) -->
+        <div id="build-menu" class="build-menu hidden">
+            <!-- Garden Plot -->
+            <div id="build-garden" class="build-menu-item">
+                <img src="https://placehold.co/96x96/10b981/ecfdf5?text=Garden" alt="Garden">
+                <p>Garden (50M)</p>
+            </div>
+            <!-- Bungalow -->
+            <div id="build-bungalow" class="build-menu-item">
+                <img src="https://placehold.co/96x96/fcd34d/14532d?text=Bungalow" alt="Bungalow">
+                <p>Bungalow (200M, 100GP)</p>
+            </div>
+            <!-- Solar Panel -->
+            <div id="build-solar" class="build-menu-item">
+                <img src="https://placehold.co/96x96/60a5fa/14532d?text=Solar" alt="Solar Panel">
+                <p>Solar (100M)</p>
+            </div>
+            <!-- Water Pump -->
+            <div id="build-water-pump" class="build-menu-item">
+                <img src="https://placehold.co/96x96/3b82f6/ecfdf5?text=Water+Pump" alt="Water Pump">
+                <p>Water Pump (75M)</p>
+            </div>
+            <!-- Attraction -->
+            <div id="build-attraction" class="build-menu-item">
+                <img src="https://placehold.co/96x96/f87171/ecfdf5?text=Attraction" alt="Attraction">
+                <p>Attraction (150M)</p>
+            </div>
+            <!-- Chicken Coop -->
+            <div id="build-chicken-coop" class="build-menu-item">
+                <img src="https://placehold.co/96x96/fbbf24/14532d?text=Coop" alt="Chicken Coop">
+                <p>Chicken Coop (125M)</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Use a self-invoking function to prevent global scope pollution
+        (function() {
+            // =============================================================
+            // Core Game Setup
+            // =============================================================
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // UI Elements
+            const moneyCountEl = document.getElementById('money-count');
+            const energyCountEl = document.getElementById('energy-count');
+            const waterCountEl = document.getElementById('water-count');
+            const foodCountEl = document.getElementById('food-count');
+            const guestPointsCountEl = document.getElementById('guest-points-count');
+            const dayCountEl = document.getElementById('day-count');
+            const messageBoxEl = document.getElementById('message-box');
+
+            // Forecast Elements
+            const moneyForecastEl = document.getElementById('money-forecast');
+            const energyForecastEl = document.getElementById('energy-forecast');
+            const waterForecastEl = document.getElementById('water-forecast');
+            const foodForecastEl = document.getElementById('food-forecast');
+            const guestPointsForecastEl = document.getElementById('guest-points-forecast');
+            
+            // Control Buttons and Menus
+            const toggleBuildBtn = document.getElementById('toggle-build-mode');
+            const toggleEditBtn = document.getElementById('toggle-edit-mode');
+            const passTimeBtn = document.getElementById('pass-time');
+            const buildMenuEl = document.getElementById('build-menu');
+            
+            // Game State
+            const state = {
+                resources: {
+                    money: 500,
+                    energy: 100,
+                    water: 50,
+                    food: 50,
+                    guestPoints: 0
+                },
+                day: 1,
+                sprites: [],
+                // Game modes
+                isBuilding: false,
+                isEditing: false,
+                selectedSprite: null,
+                hoveredSprite: null,
+                dragOffset: { x: 0, y: 0 }
+            };
+
+            // New configuration object to hold all building data
+            const buildingsConfig = {
+                'garden': { cost: 50, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/10b981/ecfdf5?text=Garden', info: "+10 {food} / Day\n-5 {water} / Day" },
+                'bungalow': { cost: 200, guestCost: 100, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/fcd34d/14532d?text=Bungalow', info: "Houses 2 Guests\n-10 {energy} / Day\n-5 {money} / Day\n-5 {water} / Day\n-5 {food} / Day" },
+                'solar': { cost: 100, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/60a5fa/14532d?text=Solar', info: "+20 {energy} / Day" },
+                'water-pump': { cost: 75, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/3b82f6/ecfdf5?text=Water+Pump', info: "+20 {water} / Day\n-5 {energy} / Day" },
+                'attraction': { cost: 150, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/f87171/ecfdf5?text=Attraction', info: "+10 {guestPoints} / Day" },
+                'chicken-coop': { cost: 125, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/fbbf24/14532d?text=Coop', info: "+25 {money} / Day\n-5 {food} / Day" }
+            };
+
+            // Object to store pre-loaded image objects
+            const assets = {};
+
+            // =============================================================
+            // Helper Functions
+            // =============================================================
+
+            // Utility function to draw a rounded rectangle
+            CanvasRenderingContext2D.prototype.roundRect = function (x, y, width, height, radius) {
+                if (width < 2 * radius) radius = width / 2;
+                if (height < 2 * radius) radius = height / 2;
+                this.beginPath();
+                this.moveTo(x + radius, y);
+                this.arcTo(x + width, y, x + width, y + height, radius);
+                this.arcTo(x + width, y + height, x, y + height, radius);
+                this.arcTo(x, y + height, x, y, radius);
+                this.arcTo(x, y, x + width, y, radius);
+                this.closePath();
+                return this;
+            }
+            
+            // Function to show a message to the user
+            function showMessage(text, isError = false) {
+                messageBoxEl.textContent = text;
+                messageBoxEl.className = 'show';
+                messageBoxEl.style.backgroundColor = isError ? '#fca5a5' : '#d1fae5';
+                messageBoxEl.style.color = isError ? '#7f1d1d' : '#065f46';
+                setTimeout(() => {
+                    messageBoxEl.className = '';
+                }, 3000);
+            }
+
+            // Function to update the UI with current resource values
+            function updateUI() {
+                moneyCountEl.textContent = state.resources.money.toFixed(0);
+                energyCountEl.textContent = state.resources.energy.toFixed(0);
+                waterCountEl.textContent = state.resources.water.toFixed(0);
+                foodCountEl.textContent = state.resources.food.toFixed(0);
+                guestPointsCountEl.textContent = state.resources.guestPoints.toFixed(0);
+                dayCountEl.textContent = state.day;
+
+                // Update the forecast
+                const forecast = calculateTomorrowForecast();
+                updateForecastUI(moneyForecastEl, forecast.money);
+                updateForecastUI(energyForecastEl, forecast.energy);
+                updateForecastUI(waterForecastEl, forecast.water);
+                updateForecastUI(foodForecastEl, forecast.food);
+                updateForecastUI(guestPointsForecastEl, forecast.guestPoints);
+            }
+
+            // Function to update a single forecast element
+            function updateForecastUI(element, value) {
+                if (value > 0) {
+                    element.textContent = `+${value.toFixed(0)}`;
+                    element.className = 'forecast-text text-green-400';
+                } else if (value < 0) {
+                    element.textContent = `${value.toFixed(0)}`;
+                    element.className = 'forecast-text text-red-400';
+                } else {
+                    element.textContent = '+0';
+                    element.className = 'forecast-text text-green-400'; // Default to green for zero change
+                }
+            }
+
+            // A reusable function to calculate daily resource changes without altering state
+            function calculateDailyChanges(sprites, currentResources) {
+                const changes = {
+                    money: 0,
+                    energy: 0,
+                    water: 0,
+                    food: 0,
+                    guestPoints: 0
+                };
+            
+                // Count buildings for calculations
+                const solarPanels = sprites.filter(s => s.type === 'solar').length;
+                const waterPumps = sprites.filter(s => s.type === 'water-pump').length;
+                const gardens = sprites.filter(s => s.type === 'garden').length;
+                const bungalows = sprites.filter(s => s.type === 'bungalow').length;
+                const attractions = sprites.filter(s => s.type === 'attraction').length;
+                const chickenCoops = sprites.filter(s => s.type === 'chicken-coop').length;
+            
+                // Calculate base production and consumption
+                changes.energy += solarPanels * 20;
+                changes.guestPoints += attractions * 10;
+                changes.money += chickenCoops * 25; // Chicken coop money production
+            
+                // Check if enough energy for pumps
+                const energyPerPump = 5;
+                const energyForPumps = waterPumps * energyPerPump;
+                if (currentResources.energy + changes.energy >= energyForPumps) {
+                    changes.water += waterPumps * 20;
+                    changes.energy -= energyForPumps;
+                }
+            
+                // Check if enough water for gardens
+                const waterPerGarden = 5;
+                const waterForGardens = gardens * waterPerGarden;
+                if (currentResources.water + changes.water >= waterForGardens) {
+                    changes.food += gardens * 10;
+                    changes.water -= waterForGardens;
+                }
+                
+                // Chicken coop food consumption
+                changes.food -= chickenCoops * 5;
+
+                // Bungalow consumption (representing guests)
+                changes.money += bungalows * 50; // Guests pay money
+                changes.energy -= bungalows * 10;
+                changes.water -= bungalows * 5;
+                changes.food -= bungalows * 5;
+
+                return changes;
+            }
+
+            // Function to calculate the resource forecast for the next day
+            function calculateTomorrowForecast() {
+                // Get the daily changes based on the current state
+                const dailyChanges = calculateDailyChanges(state.sprites, state.resources);
+                
+                // The daily changes are the forecast, as we are not simulating further
+                return dailyChanges;
+            }
+
+
+            // Function to draw info text for the hovered sprite
+            function drawInfoText() {
+                if (!state.hoveredSprite) return;
+
+                const sprite = state.hoveredSprite;
+                const infoText = buildingsConfig[sprite.type]?.info;
+                if (!infoText) return;
+
+                const padding = 10;
+                const iconSize = 16;
+                const iconPadding = 5;
+                const lineHeight = 20;
+                const fontSize = 14;
+                ctx.font = `${fontSize}px 'Inter', sans-serif`;
+
+                const lines = infoText.split('\n');
+                let maxWidth = 0;
+                lines.forEach(line => {
+                    // This regular expression finds the word inside curly braces
+                    const match = line.match(/{(\w+)}/);
+                    const textContent = match ? line.replace(match[0], '').trim() : line;
+                    const textWidth = ctx.measureText(textContent).width;
+                    const totalLineWidth = match ? textWidth + iconSize + iconPadding : textWidth;
+                    if (totalLineWidth > maxWidth) {
+                        maxWidth = totalLineWidth;
+                    }
+                });
+
+                const boxWidth = maxWidth + padding * 2;
+                const boxHeight = lines.length * lineHeight + padding * 2;
+                
+                const boxX = sprite.x + sprite.width + 10;
+                const boxY = sprite.y;
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10).fill();
+
+                ctx.fillStyle = '#f0fdf4';
+                lines.forEach((line, index) => {
+                    const textY = boxY + padding + (index * lineHeight) + fontSize;
+                    
+                    const match = line.match(/{(\w+)}/);
+                    if (match) {
+                        const resourceType = match[1];
+                        const textContent = line.replace(match[0], '').trim();
+                        const icon = assets[`${resourceType}_sprite`];
+                        if (icon && icon.complete) {
+                            ctx.drawImage(icon, boxX + padding, textY - iconSize + 2, iconSize, iconSize);
+                        }
+                        ctx.fillText(textContent, boxX + padding + iconSize + iconPadding, textY);
+                    } else {
+                        ctx.fillText(line, boxX + padding, textY);
+                    }
+                });
+            }
+
+            // Function to draw all sprites on the canvas
+            function drawSprites() {
+                state.sprites.forEach(sprite => {
+                    // This check is important to make sure the image has loaded before drawing
+                    if (sprite.img.complete) {
+                        ctx.drawImage(sprite.img, sprite.x, sprite.y, sprite.width, sprite.height);
+                    }
+                    // Draw a highlight if the sprite is selected
+                    if (state.isEditing && state.selectedSprite === sprite) {
+                        ctx.strokeStyle = '#ef4444';
+                        ctx.lineWidth = 4;
+                        ctx.strokeRect(sprite.x, sprite.y, sprite.width, sprite.height);
+                    }
+                });
+            }
+
+            // The main game drawing function
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (assets.backdrop && assets.backdrop.complete) {
+                    // Draw the background image, scaled to fit the canvas
+                    ctx.drawImage(assets.backdrop, 0, 0, canvas.width, canvas.height);
+                }
+                drawSprites();
+                drawInfoText(); // Draw the info box after the sprites
+            }
+            
+            // Function to advance the game by one day
+            function passTime() {
+                state.day++;
+                
+                // Get the daily changes from the reusable function
+                const dailyChanges = calculateDailyChanges(state.sprites, state.resources);
+                
+                // Apply the changes to the game state
+                state.resources.money += dailyChanges.money;
+                state.resources.energy += dailyChanges.energy;
+                state.resources.water += dailyChanges.water;
+                state.resources.food += dailyChanges.food;
+                state.resources.guestPoints += dailyChanges.guestPoints;
+
+                // Check for game over conditions
+                if (state.resources.energy < 0 || state.resources.water < 0 || state.resources.food < 0) {
+                    showMessage("Game Over! Your resources ran out. Refresh to restart.", true);
+                    return;
+                }
+
+                showMessage(`Day ${state.day}: The habitat's balance has been updated.`);
+                updateUI();
+                draw();
+            }
+            
+            // =============================================================
+            // User Interaction Functions
+            // =============================================================
+            
+            // Handles building new sprites
+            function handleBuild(type) {
+                const config = buildingsConfig[type];
+                
+                // Check for bungalow cost, including guest points
+                if (type === 'bungalow') {
+                    if (state.resources.money >= config.cost && state.resources.guestPoints >= config.guestCost) {
+                        state.resources.money -= config.cost;
+                        state.resources.guestPoints -= config.guestCost;
+                    } else {
+                        showMessage(`Not enough resources to build a ${type.replace('-', ' ')}. (Need ${config.cost}M and ${config.guestCost}GP)`, true);
+                        return;
+                    }
+                } else if (state.resources.money >= config.cost) {
+                    state.resources.money -= config.cost;
+                } else {
+                    showMessage(`Not enough money to build a ${type.replace('-', ' ')}. (Need ${config.cost}M)`, true);
+                    return;
+                }
+
+                const newSprite = {
+                    id: Date.now(),
+                    type,
+                    x: canvas.width / 2 - config.width / 2, // Center the new sprite
+                    y: canvas.height / 2 - config.height / 2,
+                    width: config.width,
+                    height: config.height,
+                    level: 1,
+                    img: assets[type] // Get the pre-loaded image from the assets object
+                };
+                state.sprites.push(newSprite);
+                showMessage(`Built a new ${type.replace('-', ' ')}!`);
+                updateUI(); // This will also update the forecast
+                draw();
+            }
+
+            // Handles upgrading a selected sprite
+            function handleUpgrade() {
+                const sprite = state.selectedSprite;
+                if (!sprite) return;
+
+                let upgradeCost = 0;
+                if (sprite.type === 'garden') {
+                    if (sprite.level === 1) upgradeCost = 100;
+                    if (state.resources.money >= upgradeCost) {
+                        state.resources.money -= upgradeCost;
+                        sprite.level++;
+                        showMessage(`Upgraded the ${sprite.type.replace('-', ' ')} to level ${sprite.level}!`);
+                        updateUI();
+                        draw();
+                    } else {
+                        showMessage("Not enough money to upgrade.", true);
+                    }
+                } else {
+                    showMessage("This item cannot be upgraded (yet).", true);
+                }
+            }
+
+            // =============================================================
+            // Event Listeners
+            // =============================================================
+            
+            // Canvas resize handler
+            function resizeCanvas() {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+                draw();
+            }
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Mouse click handler for the canvas
+            canvas.addEventListener('mousedown', (e) => {
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+                
+                // If in edit mode, check for sprite selection
+                if (state.isEditing) {
+                    const clickedSprite = state.sprites.find(sprite =>
+                        mouseX >= sprite.x && mouseX <= sprite.x + sprite.width &&
+                        mouseY >= sprite.y && mouseY <= sprite.y + sprite.height
+                    );
+                    
+                    if (clickedSprite) {
+                        state.selectedSprite = clickedSprite;
+                        state.dragOffset.x = mouseX - clickedSprite.x;
+                        state.dragOffset.y = mouseY - clickedSprite.y;
+                        canvas.style.cursor = 'grabbing';
+                    } else {
+                        state.selectedSprite = null; // Deselect if clicking empty space
+                        draw();
+                    }
+                }
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                // Always check for a hovered sprite for the info box
+                const hovered = state.sprites.find(sprite =>
+                    mouseX >= sprite.x && mouseX <= sprite.x + sprite.width &&
+                    mouseY >= sprite.y && mouseY <= sprite.y + sprite.height
+                );
+                state.hoveredSprite = hovered;
+                
+                // Drag logic if a sprite is selected
+                if (state.selectedSprite) {
+                    state.selectedSprite.x = e.clientX - state.dragOffset.x;
+                    state.selectedSprite.y = e.clientY - state.dragOffset.y;
+                    draw();
+                } else if (!state.isEditing && !state.isBuilding) {
+                    // Update cursor for hovering only when not in build or edit mode
+                    canvas.style.cursor = hovered ? 'pointer' : 'default';
+                }
+
+                draw();
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                if (state.isEditing) {
+                    state.selectedSprite = null;
+                    canvas.style.cursor = 'grab';
+                }
+            });
+            
+            // Key press handler for upgrades
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'U' || e.key === 'u') {
+                    handleUpgrade();
+                }
+            });
+
+            // Control button handlers
+            toggleBuildBtn.addEventListener('click', () => {
+                state.isBuilding = !state.isBuilding;
+                buildMenuEl.classList.toggle('hidden', !state.isBuilding);
+                toggleBuildBtn.classList.toggle('active', state.isBuilding);
+                state.isEditing = false;
+                toggleEditBtn.classList.remove('active');
+                state.selectedSprite = null;
+                state.hoveredSprite = null;
+                canvas.style.cursor = state.isBuilding ? 'crosshair' : 'default';
+                draw();
+            });
+
+            toggleEditBtn.addEventListener('click', () => {
+                state.isEditing = !state.isEditing;
+                toggleEditBtn.classList.toggle('active', state.isEditing);
+                state.isBuilding = false;
+                toggleBuildBtn.classList.remove('active');
+                buildMenuEl.classList.add('hidden');
+                state.hoveredSprite = null;
+                canvas.style.cursor = state.isEditing ? 'grab' : 'default';
+                draw();
+            });
+            
+            passTimeBtn.addEventListener('click', passTime);
+
+            // Build menu item handlers
+            document.getElementById('build-garden').addEventListener('click', () => handleBuild('garden'));
+            document.getElementById('build-bungalow').addEventListener('click', () => handleBuild('bungalow'));
+            document.getElementById('build-solar').addEventListener('click', () => handleBuild('solar'));
+            document.getElementById('build-water-pump').addEventListener('click', () => handleBuild('water-pump'));
+            document.getElementById('build-attraction').addEventListener('click', () => handleBuild('attraction'));
+            document.getElementById('build-chicken-coop').addEventListener('click', () => handleBuild('chicken-coop'));
+
+            // =============================================================
+            // Initialization
+            // =============================================================
+            // New function to pre-load all images before starting the game.
+            function preloadImages(callback) {
+                const imgPaths = [
+                    'https://raw.githubusercontent.com/UNCHAINED3D/SolarPunk-MiniGame/3bae6bbda0416e75449e48ae554b3ba2fec5f695/SolarPunk/backdrop.jpg', // New, larger backdrop
+                    'https://placehold.co/32x32/14532d/ecfdf5?text=M', // Money icon
+                    'https://placehold.co/32x32/fcd34d/14532d?text=E', // Energy icon
+                    'https://placehold.co/32x32/60a5fa/14532d?text=W', // Water icon
+                    'https://placehold.co/32x32/10b981/14532d?text=F', // Food icon
+                    'https://placehold.co/32x32/fcd34d/14532d?text=GP', // Guest Points icon
+                    ...Object.values(buildingsConfig).map(b => b.imgPath)
+                ];
+                let loadedCount = 0;
+                const totalImages = imgPaths.length;
+                
+                // Helper function to load a single image and check if all are done
+                function loadImage(path, key) {
+                    const img = new Image();
+                    img.onload = () => {
+                        loadedCount++;
+                        if (loadedCount === totalImages) {
+                            callback();
+                        }
+                    };
+                    img.src = path;
+                    assets[key] = img;
+                }
+
+                // Load all images dynamically
+                loadImage('https://placehold.co/1920x1080/061d15/34d399?text=Solarpunk+Habitat', 'backdrop');
+                loadImage('https://placehold.co/32x32/14532d/ecfdf5?text=M', 'money_sprite');
+                loadImage('https://placehold.co/32x32/fcd34d/14532d?text=E', 'energy_sprite');
+                loadImage('https://placehold.co/32x32/60a5fa/14532d?text=W', 'water_sprite');
+                loadImage('https://placehold.co/32x32/10b981/14532d?text=F', 'food_sprite');
+                loadImage('https://placehold.co/32x32/fcd34d/14532d?text=GP', 'guest_sprite');
+                for (const type in buildingsConfig) {
+                    loadImage(buildingsConfig[type].imgPath, type);
+                }
+            }
+
+            // The main initialization function
+            function init() {
+                updateUI();
+                // Preload all images and then set up the canvas
+                preloadImages(() => {
+                    resizeCanvas();
+                    draw();
+                });
+            }
+
+            init();
+
+        })();
+    </script>
+</body>
+</html>
