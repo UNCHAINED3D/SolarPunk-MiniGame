@@ -173,35 +173,35 @@
             <div class="flex gap-4">
                 <div class="resource-item">
                     <div class="main-display">
-                        <img id="money-icon" src="https://placehold.co/32x32/14532d/ecfdf5?text=M" alt="Money">
+                        <img id="money-icon" src="https://unchained3d.github.io/SolarPunk-MiniGame/money_sprite.png" alt="Money">
                         <span id="money-count">500</span>
                     </div>
                     <span id="money-forecast" class="forecast-text"></span>
                 </div>
                 <div class="resource-item">
                     <div class="main-display">
-                        <img id="energy-icon" src="https://placehold.co/32x32/fcd34d/14532d?text=E" alt="Energy">
+                        <img id="energy-icon" src="https://unchained3d.github.io/SolarPunk-MiniGame/energy_sprite.png" alt="Energy">
                         <span id="energy-count">100</span>
                     </div>
                     <span id="energy-forecast" class="forecast-text"></span>
                 </div>
                 <div class="resource-item">
                     <div class="main-display">
-                        <img id="water-icon" src="https://placehold.co/32x32/60a5fa/14532d?text=W" alt="Water">
+                        <img id="water-icon" src="https://unchained3d.github.io/SolarPunk-MiniGame/water_sprite.png" alt="Water">
                         <span id="water-count">50</span>
                     </div>
                     <span id="water-forecast" class="forecast-text"></span>
                 </div>
                 <div class="resource-item">
                     <div class="main-display">
-                        <img id="food-icon" src="https://placehold.co/32x32/10b981/14532d?text=F" alt="Food">
+                        <img id="food-icon" src="https://unchained3d.github.io/SolarPunk-MiniGame/food_sprite.png" alt="Food">
                         <span id="food-count">50</span>
                     </div>
                     <span id="food-forecast" class="forecast-text"></span>
                 </div>
                 <div class="resource-item">
                     <div class="main-display">
-                        <img id="guest-icon" src="https://placehold.co/32x32/fcd34d/14532d?text=GP" alt="Guest Points">
+                        <img id="guest-icon" src="https://unchained3d.github.io/SolarPunk-MiniGame/guest_sprite.png" alt="Guest Points">
                         <span id="guest-points-count">0</span>
                     </div>
                     <span id="guest-points-forecast" class="forecast-text"></span>
@@ -229,32 +229,32 @@
         <div id="build-menu" class="build-menu hidden">
             <!-- Garden Plot -->
             <div id="build-garden" class="build-menu-item">
-                <img src="https://placehold.co/96x96/10b981/ecfdf5?text=Garden" alt="Garden">
+                <img src="https://unchained3d.github.io/SolarPunk-MiniGame/garden_sprite.png" alt="Garden">
                 <p>Garden (50M)</p>
             </div>
             <!-- Bungalow -->
             <div id="build-bungalow" class="build-menu-item">
-                <img src="https://placehold.co/96x96/fcd34d/14532d?text=Bungalow" alt="Bungalow">
+                <img src="https://unchained3d.github.io/SolarPunk-MiniGame/bungalow_sprite.png" alt="Bungalow">
                 <p>Bungalow (200M, 100GP)</p>
             </div>
             <!-- Solar Panel -->
             <div id="build-solar" class="build-menu-item">
-                <img src="https://placehold.co/96x96/60a5fa/14532d?text=Solar" alt="Solar Panel">
+                <img src="https://unchained3d.github.io/SolarPunk-MiniGame/solar_sprite.png" alt="Solar Panel">
                 <p>Solar (100M)</p>
             </div>
             <!-- Water Pump -->
             <div id="build-water-pump" class="build-menu-item">
-                <img src="https://placehold.co/96x96/3b82f6/ecfdf5?text=Water+Pump" alt="Water Pump">
+                <img src="https://unchained3d.github.io/SolarPunk-MiniGame/water_pump_sprite.png" alt="Water Pump">
                 <p>Water Pump (75M)</p>
             </div>
             <!-- Attraction -->
             <div id="build-attraction" class="build-menu-item">
-                <img src="https://placehold.co/96x96/f87171/ecfdf5?text=Attraction" alt="Attraction">
+                <img src="https://unchained3d.github.io/SolarPunk-MiniGame/attraction_sprite.png" alt="Attraction">
                 <p>Attraction (150M)</p>
             </div>
             <!-- Chicken Coop -->
             <div id="build-chicken-coop" class="build-menu-item">
-                <img src="https://placehold.co/96x96/fbbf24/14532d?text=Coop" alt="Chicken Coop">
+                <img src="https://unchained3d.github.io/SolarPunk-MiniGame/chicken_coop_sprite.png" alt="Chicken Coop">
                 <p>Chicken Coop (125M)</p>
             </div>
         </div>
@@ -312,12 +312,12 @@
 
             // New configuration object to hold all building data
             const buildingsConfig = {
-                'garden': { cost: 50, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/10b981/ecfdf5?text=Garden', info: "+10 {food} / Day\n-5 {water} / Day" },
-                'bungalow': { cost: 200, guestCost: 100, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/fcd34d/14532d?text=Bungalow', info: "Houses 2 Guests\n-10 {energy} / Day\n-5 {money} / Day\n-5 {water} / Day\n-5 {food} / Day" },
-                'solar': { cost: 100, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/60a5fa/14532d?text=Solar', info: "+20 {energy} / Day" },
-                'water-pump': { cost: 75, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/3b82f6/ecfdf5?text=Water+Pump', info: "+20 {water} / Day\n-5 {energy} / Day" },
-                'attraction': { cost: 150, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/f87171/ecfdf5?text=Attraction', info: "+10 {guestPoints} / Day" },
-                'chicken-coop': { cost: 125, width: 96, height: 96, imgPath: 'https://placehold.co/96x96/fbbf24/14532d?text=Coop', info: "+25 {money} / Day\n-5 {food} / Day" }
+                'garden': { cost: 50, width: 96, height: 96, imgPath: 'https://unchained3d.github.io/SolarPunk-MiniGame/garden_sprite.png', info: "+10 {food} / Day\n-5 {water} / Day" },
+                'bungalow': { cost: 200, guestCost: 100, width: 192, height: 192, imgPath: 'https://unchained3d.github.io/SolarPunk-MiniGame/bungalow_sprite.png', info: "Houses 2 Guests\n-10 {energy} / Day\n-5 {money} / Day\n-5 {water} / Day\n-5 {food} / Day" },
+                'solar': { cost: 100, width: 96, height: 96, imgPath: 'https://unchained3d.github.io/SolarPunk-MiniGame/solar_sprite.png', info: "+20 {energy} / Day" },
+                'water-pump': { cost: 75, width: 96, height: 96, imgPath: 'https://unchained3d.github.io/SolarPunk-MiniGame/water_pump_sprite.png', info: "+20 {water} / Day\n-5 {energy} / Day" },
+                'attraction': { cost: 150, width: 288, height: 288, imgPath: 'https://unchained3d.github.io/SolarPunk-MiniGame/attraction_sprite.png', info: "+10 {guestPoints} / Day" },
+                'chicken-coop': { cost: 125, width: 288, height: 288, imgPath: 'https://unchained3d.github.io/SolarPunk-MiniGame/chicken_coop_sprite.png', info: "+25 {money} / Day\n-5 {food} / Day" }
             };
 
             // Object to store pre-loaded image objects
@@ -729,12 +729,12 @@
             // New function to pre-load all images before starting the game.
             function preloadImages(callback) {
                 const imgPaths = [
-                    'https://raw.githubusercontent.com/UNCHAINED3D/SolarPunk-MiniGame/3bae6bbda0416e75449e48ae554b3ba2fec5f695/SolarPunk/backdrop.jpg', // New, larger backdrop
-                    'https://placehold.co/32x32/14532d/ecfdf5?text=M', // Money icon
-                    'https://placehold.co/32x32/fcd34d/14532d?text=E', // Energy icon
-                    'https://placehold.co/32x32/60a5fa/14532d?text=W', // Water icon
-                    'https://placehold.co/32x32/10b981/14532d?text=F', // Food icon
-                    'https://placehold.co/32x32/fcd34d/14532d?text=GP', // Guest Points icon
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/backdrop.jpg',
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/money_sprite.png',
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/energy_sprite.png',
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/water_sprite.png',
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/food_sprite.png',
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/guest_sprite.png',
                     ...Object.values(buildingsConfig).map(b => b.imgPath)
                 ];
                 let loadedCount = 0;
@@ -754,12 +754,12 @@
                 }
 
                 // Load all images dynamically
-                loadImage('https://placehold.co/1920x1080/061d15/34d399?text=Solarpunk+Habitat', 'backdrop');
-                loadImage('https://placehold.co/32x32/14532d/ecfdf5?text=M', 'money_sprite');
-                loadImage('https://placehold.co/32x32/fcd34d/14532d?text=E', 'energy_sprite');
-                loadImage('https://placehold.co/32x32/60a5fa/14532d?text=W', 'water_sprite');
-                loadImage('https://placehold.co/32x32/10b981/14532d?text=F', 'food_sprite');
-                loadImage('https://placehold.co/32x32/fcd34d/14532d?text=GP', 'guest_sprite');
+                loadImage('https://unchained3d.github.io/SolarPunk-MiniGame/backdrop.jpg', 'backdrop');
+                loadImage('https://unchained3d.github.io/SolarPunk-MiniGame/money_sprite.png', 'money_sprite');
+                loadImage('https://unchained3d.github.io/SolarPunk-MiniGame/energy_sprite.png', 'energy_sprite');
+                loadImage('https://unchained3d.github.io/SolarPunk-MiniGame/water_sprite.png', 'water_sprite');
+                loadImage('https://unchained3d.github.io/SolarPunk-MiniGame/food_sprite.png', 'food_sprite');
+                loadImage('https://unchained3d.github.io/SolarPunk-MiniGame/guest_sprite.png', 'guest_sprite');
                 for (const type in buildingsConfig) {
                     loadImage(buildingsConfig[type].imgPath, type);
                 }
