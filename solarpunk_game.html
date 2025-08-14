@@ -307,14 +307,7 @@
                 isEditing: false,
                 selectedSprite: null,
                 hoveredSprite: null,
-                // Pan and Zoom
-                zoomLevel: 1,
-                cameraOffset: { x: 0, y: 0 },
-                isPanning: false,
-                lastMousePosition: { x: 0, y: 0 },
-                // Mobile-specific touch state
-                isPinching: false,
-                initialPinchDistance: 0,
+                dragOffset: { x: 0, y: 0 }
             };
 
             // New configuration object to hold all building data
@@ -460,22 +453,17 @@
                 const infoText = buildingsConfig[sprite.type]?.info;
                 if (!infoText) return;
 
-                // Adjust info box position and size based on zoom level and offset
-                const drawX = sprite.x * state.zoomLevel + state.cameraOffset.x;
-                const drawY = sprite.y * state.zoomLevel + state.cameraOffset.y;
-                const drawWidth = sprite.width * state.zoomLevel;
-                const drawHeight = sprite.height * state.zoomLevel;
-
-                const padding = 10 * state.zoomLevel;
-                const iconSize = 16 * state.zoomLevel;
-                const iconPadding = 5 * state.zoomLevel;
-                const lineHeight = 20 * state.zoomLevel;
-                const fontSize = 14 * state.zoomLevel;
+                const padding = 10;
+                const iconSize = 16;
+                const iconPadding = 5;
+                const lineHeight = 20;
+                const fontSize = 14;
                 ctx.font = `${fontSize}px 'Inter', sans-serif`;
 
                 const lines = infoText.split('\n');
                 let maxWidth = 0;
                 lines.forEach(line => {
+                    // This regular expression finds the word inside curly braces
                     const match = line.match(/{(\w+)}/);
                     const textContent = match ? line.replace(match[0], '').trim() : line;
                     const textWidth = ctx.measureText(textContent).width;
@@ -488,11 +476,11 @@
                 const boxWidth = maxWidth + padding * 2;
                 const boxHeight = lines.length * lineHeight + padding * 2;
                 
-                const boxX = drawX + drawWidth + 10 * state.zoomLevel;
-                const boxY = drawY;
+                const boxX = sprite.x + sprite.width + 10;
+                const boxY = sprite.y;
 
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10 * state.zoomLevel).fill();
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10).fill();
 
                 ctx.fillStyle = '#f0fdf4';
                 lines.forEach((line, index) => {
@@ -516,20 +504,15 @@
             // Function to draw all sprites on the canvas
             function drawSprites() {
                 state.sprites.forEach(sprite => {
-                    // Calculate drawing position and size based on zoom and camera offset
-                    const drawX = sprite.x * state.zoomLevel + state.cameraOffset.x;
-                    const drawY = sprite.y * state.zoomLevel + state.cameraOffset.y;
-                    const drawWidth = sprite.width * state.zoomLevel;
-                    const drawHeight = sprite.height * state.zoomLevel;
-
+                    // This check is important to make sure the image has loaded before drawing
                     if (sprite.img.complete) {
-                        ctx.drawImage(sprite.img, drawX, drawY, drawWidth, drawHeight);
+                        ctx.drawImage(sprite.img, sprite.x, sprite.y, sprite.width, sprite.height);
                     }
                     // Draw a highlight if the sprite is selected
                     if (state.isEditing && state.selectedSprite === sprite) {
                         ctx.strokeStyle = '#ef4444';
-                        ctx.lineWidth = 4 * state.zoomLevel;
-                        ctx.strokeRect(drawX, drawY, drawWidth, drawHeight);
+                        ctx.lineWidth = 4;
+                        ctx.strokeRect(sprite.x, sprite.y, sprite.width, sprite.height);
                     }
                 });
             }
@@ -537,32 +520,10 @@
             // The main game drawing function
             function draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Draw the background image, scaled to fit the canvas without stretching
                 if (assets.backdrop && assets.backdrop.complete) {
-                    const backdrop = assets.backdrop;
-                    const backdropRatio = backdrop.width / backdrop.height;
-                    const canvasRatio = canvas.width / canvas.height;
-                    let drawWidth, drawHeight;
-
-                    // Fit the backdrop to the canvas while maintaining aspect ratio
-                    if (backdropRatio > canvasRatio) {
-                        drawWidth = canvas.width;
-                        drawHeight = canvas.width / backdropRatio;
-                    } else {
-                        drawWidth = canvas.height * backdropRatio;
-                        drawHeight = canvas.height;
-                    }
-                    
-                    // Apply zoom and pan to the backdrop
-                    const finalWidth = drawWidth * state.zoomLevel;
-                    const finalHeight = drawHeight * state.zoomLevel;
-                    const offsetX = state.cameraOffset.x + (canvas.width - finalWidth) / 2;
-                    const offsetY = state.cameraOffset.y + (canvas.height - finalHeight) / 2;
-
-                    ctx.drawImage(backdrop, offsetX, offsetY, finalWidth, finalHeight);
+                    // Draw the background image, scaled to fit the canvas
+                    ctx.drawImage(assets.backdrop, 0, 0, canvas.width, canvas.height);
                 }
-
                 drawSprites();
                 drawInfoText(); // Draw the info box after the sprites
             }
@@ -619,8 +580,8 @@
                 const newSprite = {
                     id: Date.now(),
                     type,
-                    x: (canvas.width / 2 - config.width / 2 - state.cameraOffset.x) / state.zoomLevel, // Center the new sprite, accounting for pan/zoom
-                    y: (canvas.height / 2 - config.height / 2 - state.cameraOffset.y) / state.zoomLevel,
+                    x: canvas.width / 2 - config.width / 2, // Center the new sprite
+                    y: canvas.height / 2 - config.height / 2,
                     width: config.width,
                     height: config.height,
                     level: 1,
@@ -653,25 +614,10 @@
                     showMessage("This item cannot be upgraded (yet).", true);
                 }
             }
-            
+
             // =============================================================
-            // Event Listeners for both Mouse and Touch
+            // Event Listeners
             // =============================================================
-            
-            // Helper to get coordinates from mouse or touch event
-            function getEventCoords(e) {
-                if (e.touches && e.touches.length > 0) {
-                    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                }
-                return { x: e.clientX, y: e.clientY };
-            }
-            
-            // Helper to get distance between two touches
-            function getPinchDistance(e) {
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                return Math.sqrt(dx * dx + dy * dy);
-            }
             
             // Canvas resize handler
             function resizeCanvas() {
@@ -681,153 +627,62 @@
             }
             window.addEventListener('resize', resizeCanvas);
             
-            // Mouse & Touch Down
-            canvas.addEventListener('mousedown', handlePointerDown);
-            canvas.addEventListener('touchstart', handlePointerDown);
-            
-            function handlePointerDown(e) {
-                e.preventDefault();
-                const coords = getEventCoords(e);
-
-                if (e.touches && e.touches.length === 2) {
-                    // Start of a pinch gesture
-                    state.isPinching = true;
-                    state.initialPinchDistance = getPinchDistance(e);
-                    state.isPanning = false;
-                } else if (e.touches && e.touches.length === 1 || e.button === 0) {
-                    // Start of a drag/pan gesture with one finger or left mouse button
-                    state.isPinching = false;
+            // Mouse click handler for the canvas
+            canvas.addEventListener('mousedown', (e) => {
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+                
+                // If in edit mode, check for sprite selection
+                if (state.isEditing) {
+                    const clickedSprite = state.sprites.find(sprite =>
+                        mouseX >= sprite.x && mouseX <= sprite.x + sprite.width &&
+                        mouseY >= sprite.y && mouseY <= sprite.y + sprite.height
+                    );
                     
-                    const mouseX = coords.x;
-                    const mouseY = coords.y;
-                    
-                    // Adjust mouse coordinates for pan and zoom
-                    const adjustedX = (mouseX - state.cameraOffset.x) / state.zoomLevel;
-                    const adjustedY = (mouseY - state.cameraOffset.y) / state.zoomLevel;
-
-                    // Check for sprite selection in edit mode
-                    if (state.isEditing) {
-                        const clickedSprite = state.sprites.find(sprite =>
-                            adjustedX >= sprite.x && adjustedX <= sprite.x + sprite.width &&
-                            adjustedY >= sprite.y && adjustedY <= sprite.y + sprite.height
-                        );
-                        
-                        if (clickedSprite) {
-                            state.selectedSprite = clickedSprite;
-                            state.dragOffset = { x: mouseX - clickedSprite.x * state.zoomLevel, y: mouseY - clickedSprite.y * state.zoomLevel };
-                            canvas.style.cursor = 'grabbing';
-                        } else {
-                            state.selectedSprite = null; // Deselect if clicking empty space
-                            state.isPanning = true;
-                            state.lastMousePosition = { x: mouseX, y: mouseY };
-                            canvas.style.cursor = 'grabbing';
-                            draw();
-                        }
-                    } else {
-                        state.isPanning = true;
-                        state.lastMousePosition = { x: mouseX, y: mouseY };
+                    if (clickedSprite) {
+                        state.selectedSprite = clickedSprite;
+                        state.dragOffset.x = mouseX - clickedSprite.x;
+                        state.dragOffset.y = mouseY - clickedSprite.y;
                         canvas.style.cursor = 'grabbing';
+                    } else {
+                        state.selectedSprite = null; // Deselect if clicking empty space
+                        draw();
                     }
                 }
-            }
+            });
             
-            // Mouse & Touch Move
-            canvas.addEventListener('mousemove', handlePointerMove);
-            canvas.addEventListener('touchmove', handlePointerMove);
+            canvas.addEventListener('mousemove', (e) => {
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
 
-            function handlePointerMove(e) {
-                e.preventDefault();
-
-                if (state.isPinching && e.touches && e.touches.length === 2) {
-                    // Pinch-to-zoom logic
-                    const newPinchDistance = getPinchDistance(e);
-                    const zoomFactor = newPinchDistance / state.initialPinchDistance;
-
-                    const oldZoom = state.zoomLevel;
-                    state.zoomLevel *= zoomFactor;
-                    state.zoomLevel = Math.max(0.5, Math.min(state.zoomLevel, 3)); // Clamp zoom level
-
-                    // Adjust camera offset to zoom towards the center of the pinch
-                    const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
-                    const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-                    const zoomChange = state.zoomLevel - oldZoom;
-                    state.cameraOffset.x -= (pinchCenterX - state.cameraOffset.x) * (zoomChange / oldZoom);
-                    state.cameraOffset.y -= (pinchCenterY - state.cameraOffset.y) * (zoomChange / oldZoom);
-
-                    state.initialPinchDistance = newPinchDistance; // Update for next frame
-                    draw();
-                } else if (state.isPanning && !state.isPinching) {
-                    // Pan logic
-                    const coords = getEventCoords(e);
-                    const dx = coords.x - state.lastMousePosition.x;
-                    const dy = coords.y - state.lastMousePosition.y;
-                    state.cameraOffset.x += dx;
-                    state.cameraOffset.y += dy;
-                    state.lastMousePosition = { x: coords.x, y: coords.y };
-                    draw();
-                } else if (state.selectedSprite) { // Drag logic for a selected sprite
-                    const coords = getEventCoords(e);
-                    state.selectedSprite.x = (coords.x - state.dragOffset.x) / state.zoomLevel;
-                    state.selectedSprite.y = (coords.y - state.dragOffset.y) / state.zoomLevel;
-                    draw();
-                }
-
-                // Check for hovered sprite for info box
-                const coords = getEventCoords(e);
-                const adjustedX = (coords.x - state.cameraOffset.x) / state.zoomLevel;
-                const adjustedY = (coords.y - state.cameraOffset.y) / state.zoomLevel;
+                // Always check for a hovered sprite for the info box
                 const hovered = state.sprites.find(sprite =>
-                    adjustedX >= sprite.x && adjustedX <= sprite.x + sprite.width &&
-                    adjustedY >= sprite.y && adjustedY <= sprite.y + sprite.height
+                    mouseX >= sprite.x && mouseX <= sprite.x + sprite.width &&
+                    mouseY >= sprite.y && mouseY <= sprite.y + sprite.height
                 );
                 state.hoveredSprite = hovered;
                 
-                // Update cursor for hovering only when not in build or edit mode and not panning
-                if (!state.isPanning) {
+                // Drag logic if a sprite is selected
+                if (state.selectedSprite) {
+                    state.selectedSprite.x = e.clientX - state.dragOffset.x;
+                    state.selectedSprite.y = e.clientY - state.dragOffset.y;
+                    draw();
+                } else if (!state.isEditing && !state.isBuilding) {
+                    // Update cursor for hovering only when not in build or edit mode
                     canvas.style.cursor = hovered ? 'pointer' : 'default';
                 }
 
                 draw();
-            }
-            
-            // Mouse & Touch Up
-            canvas.addEventListener('mouseup', handlePointerUp);
-            canvas.addEventListener('touchend', handlePointerUp);
-            canvas.addEventListener('touchcancel', handlePointerUp); // Also handle touchcancel
-
-            function handlePointerUp(e) {
-                state.isPanning = false;
-                state.isPinching = false;
-                state.selectedSprite = null;
-                canvas.style.cursor = state.isEditing ? 'grab' : 'default';
-            }
-            
-            // Mouse wheel for zooming (desktop only)
-            canvas.addEventListener('wheel', (e) => {
-                e.preventDefault();
-                const zoomFactor = 1.1;
-                const mouseX = e.clientX;
-                const mouseY = e.clientY;
-                const oldZoom = state.zoomLevel;
-
-                if (e.deltaY < 0) {
-                    state.zoomLevel *= zoomFactor;
-                } else {
-                    state.zoomLevel /= zoomFactor;
-                }
-
-                state.zoomLevel = Math.max(0.5, Math.min(state.zoomLevel, 3));
-
-                const zoomChange = state.zoomLevel - oldZoom;
-                const mouseCanvasX = mouseX - canvas.getBoundingClientRect().left;
-                const mouseCanvasY = mouseY - canvas.getBoundingClientRect().top;
-                state.cameraOffset.x -= (mouseCanvasX - state.cameraOffset.x) * (zoomChange / oldZoom);
-                state.cameraOffset.y -= (mouseCanvasY - state.cameraOffset.y) * (zoomChange / oldZoom);
-
-                draw();
             });
-
-            // Key press handler for upgrades (desktop only)
+            
+            canvas.addEventListener('mouseup', () => {
+                if (state.isEditing) {
+                    state.selectedSprite = null;
+                    canvas.style.cursor = 'grab';
+                }
+            });
+            
+            // Key press handler for upgrades
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'U' || e.key === 'u') {
                     handleUpgrade();
@@ -876,7 +731,7 @@
                 const imgPaths = [
                     'https://unchained3d.github.io/SolarPunk-MiniGame/backdrop.jpg',
                     'https://unchained3d.github.io/SolarPunk-MiniGame/money_sprite.png',
-                    'https://unchained3d.io/SolarPunk-MiniGame/energy_sprite.png',
+                    'https://unchained3d.github.io/SolarPunk-MiniGame/energy_sprite.png',
                     'https://unchained3d.github.io/SolarPunk-MiniGame/water_sprite.png',
                     'https://unchained3d.github.io/SolarPunk-MiniGame/food_sprite.png',
                     'https://unchained3d.github.io/SolarPunk-MiniGame/guest_sprite.png',
