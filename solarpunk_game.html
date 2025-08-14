@@ -307,7 +307,11 @@
                 isEditing: false,
                 selectedSprite: null,
                 hoveredSprite: null,
-                dragOffset: { x: 0, y: 0 }
+                // Pan and Zoom
+                zoomLevel: 1,
+                cameraOffset: { x: 0, y: 0 },
+                isPanning: false,
+                lastMousePosition: { x: 0, y: 0 },
             };
 
             // New configuration object to hold all building data
@@ -453,17 +457,22 @@
                 const infoText = buildingsConfig[sprite.type]?.info;
                 if (!infoText) return;
 
-                const padding = 10;
-                const iconSize = 16;
-                const iconPadding = 5;
-                const lineHeight = 20;
-                const fontSize = 14;
+                // Adjust info box position and size based on zoom level and offset
+                const drawX = sprite.x * state.zoomLevel + state.cameraOffset.x;
+                const drawY = sprite.y * state.zoomLevel + state.cameraOffset.y;
+                const drawWidth = sprite.width * state.zoomLevel;
+                const drawHeight = sprite.height * state.zoomLevel;
+
+                const padding = 10 * state.zoomLevel;
+                const iconSize = 16 * state.zoomLevel;
+                const iconPadding = 5 * state.zoomLevel;
+                const lineHeight = 20 * state.zoomLevel;
+                const fontSize = 14 * state.zoomLevel;
                 ctx.font = `${fontSize}px 'Inter', sans-serif`;
 
                 const lines = infoText.split('\n');
                 let maxWidth = 0;
                 lines.forEach(line => {
-                    // This regular expression finds the word inside curly braces
                     const match = line.match(/{(\w+)}/);
                     const textContent = match ? line.replace(match[0], '').trim() : line;
                     const textWidth = ctx.measureText(textContent).width;
@@ -476,11 +485,11 @@
                 const boxWidth = maxWidth + padding * 2;
                 const boxHeight = lines.length * lineHeight + padding * 2;
                 
-                const boxX = sprite.x + sprite.width + 10;
-                const boxY = sprite.y;
+                const boxX = drawX + drawWidth + 10 * state.zoomLevel;
+                const boxY = drawY;
 
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10).fill();
+                ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 10 * state.zoomLevel).fill();
 
                 ctx.fillStyle = '#f0fdf4';
                 lines.forEach((line, index) => {
@@ -504,15 +513,20 @@
             // Function to draw all sprites on the canvas
             function drawSprites() {
                 state.sprites.forEach(sprite => {
-                    // This check is important to make sure the image has loaded before drawing
+                    // Calculate drawing position and size based on zoom and camera offset
+                    const drawX = sprite.x * state.zoomLevel + state.cameraOffset.x;
+                    const drawY = sprite.y * state.zoomLevel + state.cameraOffset.y;
+                    const drawWidth = sprite.width * state.zoomLevel;
+                    const drawHeight = sprite.height * state.zoomLevel;
+
                     if (sprite.img.complete) {
-                        ctx.drawImage(sprite.img, sprite.x, sprite.y, sprite.width, sprite.height);
+                        ctx.drawImage(sprite.img, drawX, drawY, drawWidth, drawHeight);
                     }
                     // Draw a highlight if the sprite is selected
                     if (state.isEditing && state.selectedSprite === sprite) {
                         ctx.strokeStyle = '#ef4444';
-                        ctx.lineWidth = 4;
-                        ctx.strokeRect(sprite.x, sprite.y, sprite.width, sprite.height);
+                        ctx.lineWidth = 4 * state.zoomLevel;
+                        ctx.strokeRect(drawX, drawY, drawWidth, drawHeight);
                     }
                 });
             }
@@ -520,10 +534,32 @@
             // The main game drawing function
             function draw() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw the background image, scaled to fit the canvas without stretching
                 if (assets.backdrop && assets.backdrop.complete) {
-                    // Draw the background image, scaled to fit the canvas
-                    ctx.drawImage(assets.backdrop, 0, 0, canvas.width, canvas.height);
+                    const backdrop = assets.backdrop;
+                    const backdropRatio = backdrop.width / backdrop.height;
+                    const canvasRatio = canvas.width / canvas.height;
+                    let drawWidth, drawHeight;
+
+                    // Fit the backdrop to the canvas while maintaining aspect ratio
+                    if (backdropRatio > canvasRatio) {
+                        drawWidth = canvas.width;
+                        drawHeight = canvas.width / backdropRatio;
+                    } else {
+                        drawWidth = canvas.height * backdropRatio;
+                        drawHeight = canvas.height;
+                    }
+                    
+                    // Apply zoom and pan to the backdrop
+                    const finalWidth = drawWidth * state.zoomLevel;
+                    const finalHeight = drawHeight * state.zoomLevel;
+                    const offsetX = state.cameraOffset.x + (canvas.width - finalWidth) / 2;
+                    const offsetY = state.cameraOffset.y + (canvas.height - finalHeight) / 2;
+
+                    ctx.drawImage(backdrop, offsetX, offsetY, finalWidth, finalHeight);
                 }
+
                 drawSprites();
                 drawInfoText(); // Draw the info box after the sprites
             }
@@ -580,8 +616,8 @@
                 const newSprite = {
                     id: Date.now(),
                     type,
-                    x: canvas.width / 2 - config.width / 2, // Center the new sprite
-                    y: canvas.height / 2 - config.height / 2,
+                    x: (canvas.width / 2 - config.width / 2 - state.cameraOffset.x) / state.zoomLevel, // Center the new sprite, accounting for pan/zoom
+                    y: (canvas.height / 2 - config.height / 2 - state.cameraOffset.y) / state.zoomLevel,
                     width: config.width,
                     height: config.height,
                     level: 1,
@@ -632,22 +668,32 @@
                 const mouseX = e.clientX;
                 const mouseY = e.clientY;
                 
+                // Adjust mouse coordinates for pan and zoom
+                const adjustedX = (mouseX - state.cameraOffset.x) / state.zoomLevel;
+                const adjustedY = (mouseY - state.cameraOffset.y) / state.zoomLevel;
+
                 // If in edit mode, check for sprite selection
                 if (state.isEditing) {
                     const clickedSprite = state.sprites.find(sprite =>
-                        mouseX >= sprite.x && mouseX <= sprite.x + sprite.width &&
-                        mouseY >= sprite.y && mouseY <= sprite.y + sprite.height
+                        adjustedX >= sprite.x && adjustedX <= sprite.x + sprite.width &&
+                        adjustedY >= sprite.y && adjustedY <= sprite.y + sprite.height
                     );
                     
                     if (clickedSprite) {
                         state.selectedSprite = clickedSprite;
-                        state.dragOffset.x = mouseX - clickedSprite.x;
-                        state.dragOffset.y = mouseY - clickedSprite.y;
+                        state.dragOffset = { x: mouseX - clickedSprite.x * state.zoomLevel, y: mouseY - clickedSprite.y * state.zoomLevel };
                         canvas.style.cursor = 'grabbing';
                     } else {
                         state.selectedSprite = null; // Deselect if clicking empty space
+                        state.isPanning = true;
+                        state.lastMousePosition = { x: mouseX, y: mouseY };
+                        canvas.style.cursor = 'grabbing';
                         draw();
                     }
+                } else {
+                    state.isPanning = true;
+                    state.lastMousePosition = { x: mouseX, y: mouseY };
+                    canvas.style.cursor = 'grabbing';
                 }
             });
             
@@ -655,19 +701,30 @@
                 const mouseX = e.clientX;
                 const mouseY = e.clientY;
 
+                // Adjust mouse coordinates for pan and zoom to check for hovering
+                const adjustedX = (mouseX - state.cameraOffset.x) / state.zoomLevel;
+                const adjustedY = (mouseY - state.cameraOffset.y) / state.zoomLevel;
+
                 // Always check for a hovered sprite for the info box
                 const hovered = state.sprites.find(sprite =>
-                    mouseX >= sprite.x && mouseX <= sprite.x + sprite.width &&
-                    mouseY >= sprite.y && mouseY <= sprite.y + sprite.height
+                    adjustedX >= sprite.x && adjustedX <= sprite.x + sprite.width &&
+                    adjustedY >= sprite.y && adjustedY <= sprite.y + sprite.height
                 );
                 state.hoveredSprite = hovered;
                 
-                // Drag logic if a sprite is selected
-                if (state.selectedSprite) {
-                    state.selectedSprite.x = e.clientX - state.dragOffset.x;
-                    state.selectedSprite.y = e.clientY - state.dragOffset.y;
+                // Pan logic
+                if (state.isPanning) {
+                    const dx = mouseX - state.lastMousePosition.x;
+                    const dy = mouseY - state.lastMousePosition.y;
+                    state.cameraOffset.x += dx;
+                    state.cameraOffset.y += dy;
+                    state.lastMousePosition = { x: mouseX, y: mouseY };
                     draw();
-                } else if (!state.isEditing && !state.isBuilding) {
+                } else if (state.selectedSprite) { // Drag logic if a sprite is selected
+                    state.selectedSprite.x = (mouseX - state.dragOffset.x) / state.zoomLevel;
+                    state.selectedSprite.y = (mouseY - state.dragOffset.y) / state.zoomLevel;
+                    draw();
+                } else {
                     // Update cursor for hovering only when not in build or edit mode
                     canvas.style.cursor = hovered ? 'pointer' : 'default';
                 }
@@ -676,12 +733,39 @@
             });
             
             canvas.addEventListener('mouseup', () => {
-                if (state.isEditing) {
-                    state.selectedSprite = null;
-                    canvas.style.cursor = 'grab';
-                }
+                state.isPanning = false;
+                state.selectedSprite = null;
+                canvas.style.cursor = state.isEditing ? 'grab' : 'default';
             });
             
+            // Mouse wheel for zooming
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const zoomFactor = 1.1; // Amount to zoom by
+                const mouseX = e.clientX;
+                const mouseY = e.clientY;
+
+                const oldZoom = state.zoomLevel;
+                if (e.deltaY < 0) {
+                    state.zoomLevel *= zoomFactor; // Zoom in
+                } else {
+                    state.zoomLevel /= zoomFactor; // Zoom out
+                }
+
+                // Clamp the zoom level to a reasonable range
+                state.zoomLevel = Math.max(0.5, Math.min(state.zoomLevel, 3));
+
+                // Adjust camera offset to zoom towards the mouse cursor
+                const zoomChange = state.zoomLevel - oldZoom;
+                const mouseCanvasX = mouseX - canvas.getBoundingClientRect().left;
+                const mouseCanvasY = mouseY - canvas.getBoundingClientRect().top;
+
+                state.cameraOffset.x -= (mouseCanvasX - state.cameraOffset.x) * (zoomChange / oldZoom);
+                state.cameraOffset.y -= (mouseCanvasY - state.cameraOffset.y) * (zoomChange / oldZoom);
+
+                draw();
+            });
+
             // Key press handler for upgrades
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'U' || e.key === 'u') {
